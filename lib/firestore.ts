@@ -26,6 +26,19 @@ function timestampToISO(timestamp: Timestamp | null): string {
   return timestamp.toDate().toISOString();
 }
 
+function isProfileComplete(data: Partial<User> | null | undefined): boolean {
+  if (!data) return false;
+
+  return Boolean(
+    data.onboardingCompleted ||
+      (data.age &&
+        data.age > 0 &&
+        data.weight &&
+        data.weight > 0 &&
+        data.goal)
+  );
+}
+
 // Get user by UID
 export async function getUser(uid: string): Promise<User | null> {
   try {
@@ -42,6 +55,7 @@ export async function getUser(uid: string): Promise<User | null> {
         goal: data.goal,
         dailyCalorieIntake: data.dailyCalorieIntake,
         dailyCalorieBurn: data.dailyCalorieBurn,
+        onboardingCompleted: isProfileComplete(data as Partial<User>),
         createdAt: timestampToISO(data.createdAt),
       } as User;
     }
@@ -89,6 +103,7 @@ export async function createUserProfile(
       goal: "maintain",
       dailyCalorieIntake: 2000,
       dailyCalorieBurn: 400,
+      onboardingCompleted: false,
       createdAt: serverTimestamp(),
     });
   } catch (error) {
@@ -237,6 +252,7 @@ export async function completeOnboarding(
       doc(usersCollection, uid),
       {
         ...data,
+        onboardingCompleted: true,
         updatedAt: serverTimestamp(),
       },
       { merge: true }

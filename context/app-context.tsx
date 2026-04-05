@@ -1,19 +1,20 @@
 "use client";
 
-import React, {
+import {
   createContext,
   useContext,
   useState,
   useEffect,
-  ReactNode,
-  Dispatch,
-  SetStateAction,
+  type ReactNode,
+  type Dispatch,
+  type SetStateAction,
 } from "react";
 import {
-  onAuthStateChanged,
+  onIdTokenChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
+  type User as FirebaseAuthUser,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import {
@@ -35,6 +36,23 @@ import {
   ProfileFormData,
 } from "@/types";
 import toast from "react-hot-toast";
+
+function isProfileComplete(user: User | null): boolean {
+  if (!user) return false;
+
+  return Boolean(
+    user.onboardingCompleted ||
+      (user.age && user.age > 0 && user.weight && user.weight > 0 && user.goal)
+  );
+}
+
+function getFallbackUsername(firebaseUser: FirebaseAuthUser) {
+  return (
+    firebaseUser.displayName?.trim() ||
+    firebaseUser.email?.split("@")[0] ||
+    "PulseFit User"
+  );
+}
 
 interface AppContextType {
   user: User | null;
@@ -74,63 +92,37 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isUserFetched, setIsUserFetched] = useState(false);
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [allFoodLogs, setAllFoodLogs] = useState<FoodEntry[]>([]);
-  const [allActivityLogs, setAllActivityLogs] = useState<ActivityEntry[]>(
-    []
-  );
+  const [allActivityLogs, setAllActivityLogs] = useState<ActivityEntry[]>([]);
 
-  // Listen for auth state changes
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const userData = await getUser(firebaseUser.uid);
-          if (userData) {
-            setUser(userData);
-            // Check if onboarding is completed
-            if (
-              userData.age &&
-              userData.age > 0 &&
-              userData.weight &&
-              userData.weight > 0 &&
-              userData.goal
-            ) {
-              setOnboardingCompleted(true);
-            }
-            // Fetch user's logs
-            await fetchFoodLogs(firebaseUser.uid);
-            await fetchActivityLogs(firebaseUser.uid);
-          }
-        } catch (error) {
-          console.error("Error fetching user data:", error);
-        }
-      } else {
-        setUser(null);
-        setOnboardingCompleted(false);
-        setAllFoodLogs([]);
-        setAllActivityLogs([]);
-      }
-
-      setIsUserFetched(true);
+  const syncServerSession = async (idToken: string) => {
+    const response = await fetch("/api/auth/session", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ idToken }),
     });
 
-    return () => unsubscribe();
-  }, []);
+    if (!response.ok) {
+      throw new Error("Failed to sync auth session");
+    }
+  };
+
+  const clearServerSession = async () => {
+    try {
+      await fetch("/api/auth/session", {
+        method: "DELETE",
+      });
+    } catch (error) {
+      console.error("Failed to clear auth session:", error);
+    }
+  };
 
   const fetchUser = async (uid: string) => {
     try {
       const userData = await getUser(uid);
-      if (userData) {
-        setUser(userData);
-        if (
-          userData.age &&
-          userData.age > 0 &&
-          userData.weight &&
-          userData.weight > 0 &&
-          userData.goal
-        ) {
-          setOnboardingCompleted(true);
-        }
-      }
+      setUser(userData);
+      setOnboardingCompleted(isProfileComplete(userData));
     } catch (error) {
       console.error("Error fetching user:", error);
     }
@@ -154,9 +146,68 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const ensureUserProfile = async (
+    firebaseUser: FirebaseAuthUser,
+    preferredUsername?: string
+  ): Promise<User | null> => {
+    let userData = await getUser(firebaseUser.uid);
+
+    if (userData) {
+      return userData;
+    }
+
+    await createUserProfile(
+      firebaseUser.uid,
+      preferredUsername?.trim() || getFallbackUsername(firebaseUser),
+      firebaseUser.email || ""
+    );
+
+    userData = await getUser(firebaseUser.uid);
+    return userData;
+  };
+
+  useEffect(() => {
+    const unsubscribe = onIdTokenChanged(auth, async (firebaseUser) => {
+      if (!firebaseUser) {
+        await clearServerSession();
+        setUser(null);
+        setOnboardingCompleted(false);
+        setAllFoodLogs([]);
+        setAllActivityLogs([]);
+        setIsUserFetched(true);
+        return;
+      }
+
+      try {
+        const idToken = await firebaseUser.getIdToken();
+        await syncServerSession(idToken);
+
+        const userData = await ensureUserProfile(firebaseUser);
+        setUser(userData);
+        setOnboardingCompleted(isProfileComplete(userData));
+
+        await Promise.all([
+          fetchFoodLogs(firebaseUser.uid),
+          fetchActivityLogs(firebaseUser.uid),
+        ]);
+      } catch (error) {
+        console.error("Error fetching user data:", error);
+        toast.error("We couldn't restore your session cleanly. Please try again.");
+      } finally {
+        setIsUserFetched(true);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
   const login = async (credentials: Credentials) => {
     try {
-      await signInWithEmailAndPassword(auth, credentials.email, credentials.password);
+      await signInWithEmailAndPassword(
+        auth,
+        credentials.email,
+        credentials.password
+      );
       toast.success("Welcome back!");
     } catch (error: any) {
       console.error("Login error:", error);
@@ -179,12 +230,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         credentials.password
       );
 
-      // Create user profile in Firestore
-      await createUserProfile(
-        firebaseUser.uid,
-        credentials.username || "",
-        credentials.email
-      );
+      await ensureUserProfile(firebaseUser, credentials.username);
       await fetchUser(firebaseUser.uid);
 
       toast.success("Account created successfully!");
@@ -203,7 +249,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      await Promise.all([clearServerSession(), signOut(auth)]);
       setUser(null);
       setOnboardingCompleted(false);
       setAllFoodLogs([]);
@@ -279,11 +325,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
 
     try {
-      await updateUser(user.uid, data);
+      await updateUser(user.uid, {
+        ...data,
+        onboardingCompleted: true,
+      });
       const updatedUser = await getUser(user.uid);
       if (updatedUser) {
         setUser(updatedUser);
-        setOnboardingCompleted(true);
+        setOnboardingCompleted(isProfileComplete(updatedUser));
       }
       toast.success("Profile updated!");
     } catch (error) {

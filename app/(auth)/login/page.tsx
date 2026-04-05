@@ -141,7 +141,7 @@ export default function LoginPage() {
         </div>
 
         <div className="relative mt-auto max-w-md pb-12">
-          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-pulse">
+          <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-black/5 text-pulse dark:bg-white/5">
             <Quote className="h-5 w-5" />
           </span>
           <div className="mt-6 min-h-[9rem]">
@@ -152,7 +152,7 @@ export default function LoginPage() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -16 }}
                 transition={{ duration: 0.45 }}
-                className="font-display text-[clamp(1.8rem,4vw,3rem)] leading-[1.05] text-[#f0efe8]"
+                className="font-display text-[clamp(1.8rem,4vw,3rem)] leading-[1.05] text-ink-inverted"
               >
                 {quotes[quoteIndex]}
               </motion.p>
@@ -167,7 +167,9 @@ export default function LoginPage() {
                 onClick={() => setQuoteIndex(index)}
                 className={cn(
                   "h-2.5 rounded-full transition-all",
-                  quoteIndex === index ? "w-8 bg-pulse" : "w-2.5 bg-white/20"
+                  quoteIndex === index
+                    ? "w-8 bg-pulse"
+                    : "w-2.5 bg-black/10 dark:bg-white/20"
                 )}
               />
             ))}

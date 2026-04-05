@@ -9,6 +9,7 @@ export interface User {
   goal: "lose" | "maintain" | "gain";
   dailyCalorieIntake: number;
   dailyCalorieBurn: number;
+  onboardingCompleted: boolean;
   createdAt: string;
 }
 

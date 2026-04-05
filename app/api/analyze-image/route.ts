@@ -1,15 +1,41 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  SESSION_COOKIE_NAME,
+  verifySessionToken,
+} from "@/lib/server/firebase-auth";
 
 const prompt =
   'Analyze this food image. Respond ONLY with a valid JSON object: { "name": "food name here", "calories": estimated_number }. No other text.';
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_REQUEST_SIZE_BYTES = 6 * 1024 * 1024;
 
 export async function POST(request: NextRequest) {
   try {
+    const sessionToken = request.cookies.get(SESSION_COOKIE_NAME)?.value;
+    const sessionUser = sessionToken
+      ? await verifySessionToken(sessionToken)
+      : null;
+
+    if (!sessionUser) {
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
     if (!process.env.GEMINI_API_KEY) {
       return NextResponse.json(
         { success: false, error: "Missing GEMINI_API_KEY" },
         { status: 500 }
+      );
+    }
+
+    const contentLength = Number(request.headers.get("content-length") ?? "0");
+    if (contentLength > MAX_REQUEST_SIZE_BYTES) {
+      return NextResponse.json(
+        { success: false, error: "Image is too large" },
+        { status: 413 }
       );
     }
 
@@ -28,6 +54,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { success: false, error: "Only image uploads are supported" },
         { status: 400 }
+      );
+    }
+
+    if (imageFile.size > MAX_IMAGE_SIZE_BYTES) {
+      return NextResponse.json(
+        { success: false, error: "Image is too large" },
+        { status: 413 }
       );
     }
 
