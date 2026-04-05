@@ -13,7 +13,9 @@ import {
   onIdTokenChanged,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
+  signInWithPopup,
   signOut,
+  GoogleAuthProvider,
   type User as FirebaseAuthUser,
 } from "firebase/auth";
 import { auth } from "@/lib/firebase";
@@ -66,6 +68,7 @@ interface AppContextType {
   setAllActivityLogs: Dispatch<SetStateAction<ActivityEntry[]>>;
   login: (credentials: Credentials) => Promise<void>;
   signup: (credentials: Credentials) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   fetchUser: (uid: string) => Promise<void>;
   fetchFoodLogs: (uid: string) => Promise<void>;
@@ -93,6 +96,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [onboardingCompleted, setOnboardingCompleted] = useState(false);
   const [allFoodLogs, setAllFoodLogs] = useState<FoodEntry[]>([]);
   const [allActivityLogs, setAllActivityLogs] = useState<ActivityEntry[]>([]);
+  const googleProvider = new GoogleAuthProvider();
+
+  googleProvider.setCustomParameters({
+    prompt: "select_account",
+  });
 
   const syncServerSession = async (idToken: string) => {
     const response = await fetch("/api/auth/session", {
@@ -247,6 +255,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const loginWithGoogle = async () => {
+    try {
+      const { user: firebaseUser } = await signInWithPopup(auth, googleProvider);
+      await ensureUserProfile(firebaseUser);
+      toast.success("Welcome to PulseFit!");
+    } catch (error: any) {
+      console.error("Google auth error:", error);
+      const errorMessage =
+        error.code === "auth/popup-closed-by-user"
+          ? "Google sign-in was closed before it finished"
+          : error.code === "auth/cancelled-popup-request"
+          ? "Another sign-in window is already open"
+          : error.code === "auth/account-exists-with-different-credential"
+          ? "That email already uses a different sign-in method"
+          : "Google sign-in failed. Please try again.";
+      toast.error(errorMessage);
+      throw error;
+    }
+  };
+
   const logout = async () => {
     try {
       await Promise.all([clearServerSession(), signOut(auth)]);
@@ -355,6 +383,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setAllActivityLogs,
         login,
         signup,
+        loginWithGoogle,
         logout,
         fetchUser,
         fetchFoodLogs,

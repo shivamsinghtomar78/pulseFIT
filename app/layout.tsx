@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import { Fraunces, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 
@@ -55,6 +56,7 @@ export default function RootLayout({
         className={`${fraunces.variable} ${jakarta.variable} ${jetbrains.variable} font-body`}
       >
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );

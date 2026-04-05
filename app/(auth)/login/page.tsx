@@ -11,6 +11,7 @@ import {
   Loader2,
   Mail,
   PersonStanding,
+  Chrome,
   Quote,
 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
@@ -35,7 +36,8 @@ function getPasswordStrength(password: string) {
 
 export default function LoginPage() {
   const router = useRouter();
-  const { login, signup, user, isUserFetched, onboardingCompleted } = useAppContext();
+  const { login, signup, loginWithGoogle, user, isUserFetched, onboardingCompleted } =
+    useAppContext();
   const [isLogin, setIsLogin] = useState(true);
   const [quoteIndex, setQuoteIndex] = useState(0);
   const [username, setUsername] = useState("");
@@ -43,6 +45,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -121,6 +124,16 @@ export default function LoginPage() {
       console.error("Auth error:", error);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setIsGoogleSubmitting(true);
+
+    try {
+      await loginWithGoogle();
+    } finally {
+      setIsGoogleSubmitting(false);
     }
   };
 
@@ -354,10 +367,24 @@ export default function LoginPage() {
 
           <button
             type="button"
-            disabled
-            className="flex w-full items-center justify-center rounded-full border border-border bg-bg-sunken px-6 py-3 text-sm font-medium text-ink-tertiary opacity-70"
+            onClick={handleGoogleAuth}
+            disabled={isSubmitting || isGoogleSubmitting}
+            className={cn(
+              "flex w-full items-center justify-center gap-3 rounded-full border border-border bg-bg-sunken px-6 py-3 text-sm font-medium text-ink-primary transition-colors hover:bg-bg-surface",
+              (isSubmitting || isGoogleSubmitting) && "cursor-not-allowed opacity-70"
+            )}
           >
-            Google (coming soon)
+            {isGoogleSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Connecting to Google...
+              </>
+            ) : (
+              <>
+                <Chrome className="h-4 w-4" />
+                Continue with Google
+              </>
+            )}
           </button>
         </motion.div>
       </section>
