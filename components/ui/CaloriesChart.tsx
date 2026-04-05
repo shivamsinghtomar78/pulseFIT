@@ -2,14 +2,16 @@
 
 import React from "react";
 import {
-  AreaChart,
   Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
+import { usePrefersReducedMotion } from "@/hooks/usePrefersReducedMotion";
+import { cn } from "@/lib/utils";
 
 interface ChartDataPoint {
   day: string;
@@ -23,67 +25,77 @@ interface CaloriesChartProps {
 }
 
 export function CaloriesChart({ data, className = "" }: CaloriesChartProps) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+
   return (
-    <div className={`w-full h-64 ${className}`}>
+    <div className={cn("h-72 w-full", className)}>
       <ResponsiveContainer width="100%" height="100%">
-        <AreaChart
-          data={data}
-          margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
-        >
+        <AreaChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
           <defs>
             <linearGradient id="colorIntake" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+              <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.18} />
+              <stop offset="95%" stopColor="var(--accent)" stopOpacity={0} />
             </linearGradient>
             <linearGradient id="colorBurn" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-              <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
+              <stop offset="5%" stopColor="#fb923c" stopOpacity={0.18} />
+              <stop offset="95%" stopColor="#fb923c" stopOpacity={0} />
             </linearGradient>
           </defs>
-          <CartesianGrid
-            strokeDasharray="3 3"
-            stroke="#e5e7eb"
-            className="dark:stroke-slate-700"
-          />
+          <CartesianGrid strokeDasharray="4 4" stroke="var(--border-subtle)" />
           <XAxis
             dataKey="day"
-            stroke="#6b7280"
-            tick={{ fill: "#6b7280", fontSize: 12 }}
-            axisLine={{ stroke: "#e5e7eb" }}
+            stroke="var(--ink-tertiary)"
+            tick={{
+              fill: "var(--ink-secondary)",
+              fontSize: 12,
+              fontFamily: "var(--font-jetbrains)",
+            }}
+            axisLine={false}
             tickLine={false}
           />
           <YAxis
-            stroke="#6b7280"
-            tick={{ fill: "#6b7280", fontSize: 12 }}
+            stroke="var(--ink-tertiary)"
+            tick={{
+              fill: "var(--ink-secondary)",
+              fontSize: 12,
+              fontFamily: "var(--font-jetbrains)",
+            }}
             axisLine={false}
             tickLine={false}
           />
           <Tooltip
             contentStyle={{
-              backgroundColor: "white",
-              border: "1px solid #e5e7eb",
-              borderRadius: "8px",
-              boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
+              backgroundColor: "var(--bg-surface)",
+              border: "1px solid var(--border-default)",
+              borderRadius: "16px",
+              boxShadow: "var(--shadow-md)",
+              color: "var(--ink-primary)",
             }}
-            labelStyle={{ color: "#111827", fontWeight: 600 }}
+            labelStyle={{ color: "var(--ink-primary)", fontWeight: 600 }}
           />
           <Area
             type="monotone"
             dataKey="intake"
-            stroke="#10b981"
+            stroke="var(--accent)"
             strokeWidth={2}
             fillOpacity={1}
             fill="url(#colorIntake)"
             name="Calories Intake"
+            isAnimationActive={!prefersReducedMotion}
+            animationDuration={1200}
+            animationEasing="ease-out"
           />
           <Area
             type="monotone"
             dataKey="burn"
-            stroke="#f59e0b"
+            stroke="#fb923c"
             strokeWidth={2}
             fillOpacity={1}
             fill="url(#colorBurn)"
             name="Calories Burned"
+            isAnimationActive={!prefersReducedMotion}
+            animationDuration={1200}
+            animationEasing="ease-out"
           />
         </AreaChart>
       </ResponsiveContainer>

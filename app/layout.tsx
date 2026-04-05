@@ -1,54 +1,60 @@
-import type { Metadata } from "next";
-import { Outfit } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import type { ReactNode } from "react";
+import { Fraunces, JetBrains_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/context/theme-context";
-import { AppProvider } from "@/context/app-context";
-import { Toaster } from "react-hot-toast";
+import { Providers } from "@/components/Providers";
 
-const outfit = Outfit({ subsets: ["latin"] });
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["300", "400", "700", "900"],
+  display: "swap",
+  variable: "--font-fraunces",
+});
+
+const jakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-jakarta",
+});
+
+const jetbrains = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500"],
+  display: "swap",
+  variable: "--font-jetbrains",
+});
 
 export const metadata: Metadata = {
-  title: "FitTrack - Your Daily Fitness Tracker",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000"
+  ),
+  title: "PulseFit - Track every rep. Fuel every goal.",
   description:
-    "Track your fitness journey with FitTrack. Log meals, monitor activities, set goals, and analyze food images with AI.",
+    "AI-powered fitness tracker. Log meals with a photo, track activities, and monitor your calorie balance with PulseFit.",
+  openGraph: {
+    title: "PulseFit - Track every rep. Fuel every goal.",
+    description:
+      "AI-powered fitness tracker. Log meals with a photo, track activities, and monitor your calorie balance.",
+    images: ["/og-image.png"],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#16A34A",
 };
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: ReactNode;
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={outfit.className}>
-        <ThemeProvider>
-          <AppProvider>
-            {children}
-          </AppProvider>
-          <Toaster
-            position="top-center"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: "#1e293b",
-                color: "#fff",
-                borderRadius: "8px",
-              },
-              success: {
-                iconTheme: {
-                  primary: "#10b981",
-                  secondary: "#fff",
-                },
-              },
-              error: {
-                iconTheme: {
-                  primary: "#ef4444",
-                  secondary: "#fff",
-                },
-              },
-            }}
-          />
-        </ThemeProvider>
+      <body
+        className={`${fraunces.variable} ${jakarta.variable} ${jetbrains.variable} font-body`}
+      >
+        <Providers>{children}</Providers>
       </body>
     </html>
   );

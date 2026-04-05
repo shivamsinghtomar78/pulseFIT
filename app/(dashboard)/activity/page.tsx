@@ -1,14 +1,36 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Plus, Trash2, X, Timer } from "lucide-react";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
-import { Loading } from "@/components/ui/Loading";
-import { useAppContext } from "@/context/app-context";
-import { quickActivities, isToday } from "@/assets/data";
+import { useMemo, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
+import { AnimatePresence, motion } from "framer-motion";
+import {
+  Bike,
+  CircleDot,
+  Dumbbell,
+  PersonStanding,
+  Timer,
+  Trash2,
+  Waves,
+} from "lucide-react";
 import toast from "react-hot-toast";
+import { Button } from "@/components/ui/Button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/Card";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
+import { EmptyState } from "@/components/ui/EmptyState";
+import { Input } from "@/components/ui/Input";
+import { useAppContext } from "@/context/app-context";
+import { isToday, quickActivities } from "@/assets/data";
+
+const quickActivityIcons: Record<string, ReactNode> = {
+  Running: <PersonStanding className="h-7 w-7" />,
+  Cycling: <Bike className="h-7 w-7" />,
+  Swimming: <Waves className="h-7 w-7" />,
+  Yoga: <CircleDot className="h-7 w-7" />,
+  "Weight Training": <Dumbbell className="h-7 w-7" />,
+  Walking: <PersonStanding className="h-7 w-7" />,
+  Dancing: <CircleDot className="h-7 w-7" />,
+  Basketball: <CircleDot className="h-7 w-7" />,
+};
 
 interface ActivityFormData {
   name: string;
@@ -17,72 +39,66 @@ interface ActivityFormData {
 }
 
 export default function ActivityLogPage() {
-  const { user, allActivityLogs, addActivityEntry, removeActivityEntry, isUserFetched } =
-    useAppContext();
-
+  const { allActivityLogs, addActivityEntry, removeActivityEntry } = useAppContext();
   const [showForm, setShowForm] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [formData, setFormData] = useState<ActivityFormData>({
     name: "",
     duration: "30",
     calories: "",
   });
 
-  // Filter today's logs
-  const todayLogs = useMemo(() => {
-    return allActivityLogs.filter((log) => isToday(log.createdAt));
-  }, [allActivityLogs]);
+  const todayLogs = useMemo(
+    () => allActivityLogs.filter((log) => isToday(log.createdAt)),
+    [allActivityLogs]
+  );
 
   const totalMinutes = todayLogs.reduce((sum, log) => sum + log.duration, 0);
   const totalBurned = todayLogs.reduce((sum, log) => sum + log.calories, 0);
 
-  const handleQuickAdd = (activity: (typeof quickActivities)[0]) => {
+  const handleQuickActivity = (activity: (typeof quickActivities)[number]) => {
     const duration = 30;
     const calories = duration * activity.rate;
+
     setFormData({
       name: activity.name,
-      duration: duration.toString(),
-      calories: calories.toString(),
+      duration: String(duration),
+      calories: String(calories),
     });
     setShowForm(true);
   };
 
-  const handleDurationChange = (value: string) => {
-    const duration = parseInt(value) || 0;
-    // Check if it's a quick activity to auto-calculate calories
-    const quickActivity = quickActivities.find(
-      (a) => a.name.toLowerCase() === formData.name.toLowerCase()
+  const handleDurationChange = (nextValue: string) => {
+    const numericValue = Number(nextValue);
+    const selectedQuickActivity = quickActivities.find(
+      (activity) => activity.name.toLowerCase() === formData.name.toLowerCase()
     );
 
-    if (quickActivity) {
-      const calories = duration * quickActivity.rate;
-      setFormData({
-        ...formData,
-        duration: value,
-        calories: calories.toString(),
-      });
-    } else {
-      setFormData({ ...formData, duration: value });
+    if (selectedQuickActivity && numericValue > 0) {
+      setFormData((current) => ({
+        ...current,
+        duration: nextValue,
+        calories: String(numericValue * selectedQuickActivity.rate),
+      }));
+      return;
     }
+
+    setFormData((current) => ({ ...current, duration: nextValue }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
 
-    if (!formData.name || !formData.duration || !formData.calories) {
-      toast.error("Please fill in all fields");
+    const duration = Number(formData.duration);
+    const calories = Number(formData.calories);
+
+    if (!formData.name || !duration || !calories) {
+      toast.error("Please fill in all activity fields");
       return;
     }
 
-    const duration = parseInt(formData.duration);
-    const calories = parseInt(formData.calories);
-
-    if (isNaN(duration) || duration <= 0) {
-      toast.error("Please enter a valid duration");
-      return;
-    }
-
-    if (isNaN(calories) || calories <= 0) {
-      toast.error("Please enter valid calories");
+    if (duration <= 0 || calories <= 0) {
+      toast.error("Use positive values for duration and calories");
       return;
     }
 
@@ -96,217 +112,225 @@ export default function ActivityLogPage() {
     setShowForm(false);
   };
 
-  const handleDelete = async (id: string) => {
-    if (window.confirm("Are you sure you want to delete this activity?")) {
-      await removeActivityEntry(id);
-    }
-  };
-
-  if (!isUserFetched || !user) {
-    return <Loading fullScreen text="Loading..." />;
-  }
-
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-            Activity Log
+          <p className="text-sm text-ink-tertiary">Activity log</p>
+          <h1 className="font-display text-4xl font-bold text-ink-primary">
+            Track movement
           </h1>
-          <p className="text-gray-500 dark:text-gray-400">
-            Track your workouts and activities
-          </p>
         </div>
-        <div className="text-right">
-          <p className="text-sm text-gray-500 dark:text-gray-400">
-            Active Today
+        <div className="rounded-2xl border border-border bg-bg-surface px-5 py-4 shadow-sm">
+          <p className="text-xs uppercase tracking-[0.18em] text-ink-tertiary">
+            Active today
           </p>
-          <p className="text-2xl font-bold text-amber-600 dark:text-amber-400">
-            {totalMinutes}
-            <span className="text-sm text-gray-500 ml-1">min</span>
+          <p className="mt-2 font-mono text-3xl text-orange-500">
+            {totalMinutes.toLocaleString()} min
           </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left Column - Controls */}
+      <div className="grid gap-6 xl:grid-cols-[0.96fr_1.04fr]">
         <div className="space-y-4">
-          {/* Quick Add Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Quick Activities</CardTitle>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-tertiary">
+                Quick start
+              </p>
+              <CardTitle className="text-3xl">Log a workout in one tap</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                 {quickActivities.map((activity) => (
-                  <Button
+                  <motion.button
                     key={activity.name}
-                    variant="secondary"
-                    onClick={() => handleQuickAdd(activity)}
+                    type="button"
+                    whileHover={{ y: -4 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleQuickActivity(activity)}
+                    className="rounded-2xl border border-border bg-bg-surface p-4 text-center shadow-sm transition-all duration-200 hover:border-pulse/30 hover:shadow-md"
                   >
-                    <span className="mr-2">{activity.emoji}</span>
-                    {activity.name}
-                  </Button>
+                    <span className="mx-auto mb-3 flex h-14 w-14 items-center justify-center rounded-2xl bg-bg-base text-pulse">
+                      {quickActivityIcons[activity.name] ?? <Dumbbell className="h-7 w-7" />}
+                    </span>
+                    <p className="text-sm font-medium text-ink-primary">{activity.name}</p>
+                  </motion.button>
                 ))}
               </div>
+
+              <Button
+                variant="ghost"
+                onClick={() => setShowForm((current) => !current)}
+                className="mt-4 w-full justify-center border border-dashed border-border"
+              >
+                {showForm ? "Hide manual form" : "Add custom activity"}
+              </Button>
             </CardContent>
           </Card>
 
-          {/* Manual Add */}
-          <Button
-            variant="ghost"
-            fullWidth
-            onClick={() => setShowForm(!showForm)}
-            className="border-2 border-dashed border-gray-300 dark:border-slate-700"
-          >
-            <Plus className="w-5 h-5 mr-2" />
-            {showForm ? "Cancel" : "Add Custom Activity"}
-          </Button>
-
-          {/* Add Form */}
-          {showForm && (
-            <Card className="animate-fade-in">
-              <CardHeader className="flex flex-row items-center justify-between">
-                <CardTitle>Add Activity</CardTitle>
-                <button
-                  onClick={() => setShowForm(false)}
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  <Input
-                    label="Activity Name"
-                    type="text"
-                    placeholder="e.g., Swimming"
-                    value={formData.name}
-                    onChange={(e) =>
-                      setFormData({ ...formData, name: e.target.value })
-                    }
-                  />
-                  <Input
-                    label="Duration (minutes)"
-                    type="number"
-                    min={1}
-                    max={300}
-                    placeholder="e.g., 30"
-                    value={formData.duration}
-                    onChange={(e) => handleDurationChange(e.target.value)
-                    }
-                  />
-                  <Input
-                    label="Calories Burned"
-                    type="number"
-                    placeholder="e.g., 300"
-                    value={formData.calories}
-                    onChange={(e) =>
-                      setFormData({ ...formData, calories: e.target.value })
-                    }
-                    helperText="Calories are auto-calculated for quick activities"
-                  />
-                  <Button type="submit" variant="primary" fullWidth>
-                    Log Activity
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+          <AnimatePresence initial={false}>
+            {showForm ? (
+              <motion.div
+                initial={{ opacity: 0, y: -12, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: -12, height: 0 }}
+                className="overflow-hidden"
+              >
+                <Card>
+                  <CardHeader>
+                    <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-tertiary">
+                      Manual entry
+                    </p>
+                    <CardTitle className="text-3xl">Activity details</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <form onSubmit={handleSubmit} className="space-y-4">
+                      <Input
+                        label="Activity"
+                        value={formData.name}
+                        onChange={(event) =>
+                          setFormData((current) => ({
+                            ...current,
+                            name: event.target.value,
+                          }))
+                        }
+                        placeholder="Swimming"
+                      />
+                      <Input
+                        label="Duration"
+                        type="number"
+                        value={formData.duration}
+                        onChange={(event) => handleDurationChange(event.target.value)}
+                        placeholder="30"
+                        helperText="Minutes"
+                      />
+                      <Input
+                        label="Calories burned"
+                        type="number"
+                        value={formData.calories}
+                        onChange={(event) =>
+                          setFormData((current) => ({
+                            ...current,
+                            calories: event.target.value,
+                          }))
+                        }
+                        placeholder="280"
+                        helperText="Auto-calculates for quick activities"
+                      />
+                      <Button type="submit" fullWidth>
+                        Log activity
+                      </Button>
+                    </form>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
 
-        {/* Right Column - Entries List */}
-        <div>
-          <Card className="h-full">
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle>Today&apos;s Activities</CardTitle>
-              <span className="text-sm font-medium text-amber-600 dark:text-amber-400 bg-amber-100 dark:bg-amber-900/30 px-3 py-1 rounded-full">
-                {todayLogs.length} activities
-              </span>
-            </CardHeader>
-            <CardContent>
-              {todayLogs.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-4xl mb-4">🏃</p>
-                  <p className="text-gray-500 dark:text-gray-400">
-                    No activity logged today
-                  </p>
-                  <p className="text-sm text-gray-400 dark:text-gray-500 mt-1">
-                    Get moving and track your progress!
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {todayLogs.map((log) => (
-                    <div
+        <Card className="h-full">
+          <CardHeader className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink-tertiary">
+                Today&apos;s activities
+              </p>
+              <CardTitle className="text-3xl">Movement log</CardTitle>
+            </div>
+            <span className="rounded-full bg-orange-500/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-orange-500">
+              {todayLogs.length} entries
+            </span>
+          </CardHeader>
+          <CardContent>
+            {todayLogs.length === 0 ? (
+              <EmptyState
+                icon={<Timer className="h-7 w-7" />}
+                title="No activity logged yet"
+                body="Tap a quick activity above or add your workout manually."
+                action={
+                  <Button size="sm" onClick={() => setShowForm(true)}>
+                    Log activity
+                  </Button>
+                }
+              />
+            ) : (
+              <div className="space-y-3">
+                <AnimatePresence>
+                  {todayLogs.map((log, index) => (
+                    <motion.div
                       key={log.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800 rounded-lg"
+                      initial={{ opacity: 0, scale: 0.96, y: 18 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.96, y: -12 }}
+                      transition={{ delay: index * 0.05, type: "spring", stiffness: 260, damping: 24 }}
+                      className="flex items-center gap-4 rounded-xl border border-border bg-bg-base p-4"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-100 dark:bg-amber-900/30 rounded-lg">
-                          <Timer className="w-5 h-5 text-amber-600 dark:text-amber-400" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {log.name}
-                          </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            {new Date(log.createdAt).toLocaleTimeString(
-                              "en-US",
-                              {
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              }
-                            )}
-                          </p>
-                        </div>
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-500/10 text-orange-500">
+                        <Timer className="h-5 w-5" />
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate font-medium text-ink-primary">{log.name}</p>
+                        <p className="text-xs text-ink-tertiary">
+                          {new Intl.DateTimeFormat("en-US", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          }).format(new Date(log.createdAt))}
+                        </p>
                       </div>
-
-                      <div className="flex items-center gap-4">
-                        <div className="text-right">
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {log.duration} min
-                          </p>
-                          <p className="text-sm text-amber-600 dark:text-amber-400">
-                            {log.calories} cal
-                          </p>
-                        </div>
-                        <button
-                          onClick={() => handleDelete(log.id)}
-                          className="p-2 text-gray-400 hover:text-red-500 transition-colors"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-ink-primary">
+                          {log.duration} min
+                        </p>
+                        <p className="font-mono text-sm text-orange-500">
+                          {log.calories} kcal
+                        </p>
                       </div>
-                    </div>
+                      <button
+                        type="button"
+                        aria-label={`Delete ${log.name}`}
+                        onClick={() => setDeleteId(log.id)}
+                        className="rounded-full p-2 text-ink-tertiary transition-colors hover:bg-red-500/10 hover:text-danger"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    </motion.div>
                   ))}
+                </AnimatePresence>
 
-                  {/* Summary */}
-                  <div className="pt-4 mt-4 border-t border-gray-200 dark:border-slate-700">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Total Active Time
-                      </span>
-                      <span className="font-medium text-gray-900 dark:text-white">
-                        {totalMinutes} minutes
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm mt-2">
-                      <span className="text-gray-600 dark:text-gray-400">
-                        Total Calories Burned
-                      </span>
-                      <span className="font-medium text-amber-600 dark:text-amber-400">
-                        {totalBurned} cal
-                      </span>
-                    </div>
+                <div className="mt-4 rounded-2xl border border-border bg-bg-base p-5">
+                  <div className="flex justify-between text-sm text-ink-secondary">
+                    <span>Total active time</span>
+                    <span className="font-medium text-ink-primary">{totalMinutes} min</span>
+                  </div>
+                  <div className="mt-2 flex justify-between text-sm text-ink-secondary">
+                    <span>Total calories burned</span>
+                    <span className="font-medium text-orange-500">
+                      {totalBurned.toLocaleString()} kcal
+                    </span>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      <ConfirmDialog
+        open={Boolean(deleteId)}
+        title="Delete this activity?"
+        body="This removes the workout from today's burn totals and weekly chart."
+        confirmLabel="Delete"
+        onClose={() => setDeleteId(null)}
+        onConfirm={async () => {
+          if (!deleteId) {
+            return;
+          }
+
+          await removeActivityEntry(deleteId);
+          setDeleteId(null);
+        }}
+        icon={<Trash2 className="h-5 w-5" />}
+      />
     </div>
   );
 }

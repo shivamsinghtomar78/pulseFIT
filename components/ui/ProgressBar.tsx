@@ -1,4 +1,5 @@
 import React from "react";
+import { cn } from "@/lib/utils";
 
 interface ProgressBarProps {
   value: number;
@@ -13,42 +14,38 @@ export function ProgressBar({
   value,
   max,
   label,
-  color = "bg-emerald-500",
+  color = "bg-pulse",
   showPercentage = false,
-  className = "",
+  className,
 }: ProgressBarProps) {
   const percentage = Math.min(Math.max((value / max) * 100, 0), 100);
   const isOverLimit = value > max;
 
   return (
-    <div className={`w-full ${className}`}>
-      {label && (
-        <div className="flex justify-between items-center mb-2">
-          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
-            {label}
-          </span>
-          <span className="text-sm text-gray-600 dark:text-gray-400">
+    <div className={cn("w-full", className)}>
+      {label ? (
+        <div className="mb-2 flex items-center justify-between gap-3">
+          <span className="text-sm font-medium text-ink-primary">{label}</span>
+          <span className="font-mono text-sm text-ink-secondary">
             {value} / {max}
-            {showPercentage && (
-              <span className="ml-1">({Math.round(percentage)}%)</span>
-            )}
+            {showPercentage ? <span className="ml-1">({Math.round(percentage)}%)</span> : null}
           </span>
         </div>
-      )}
+      ) : null}
 
-      <div className="relative h-3 bg-gray-200 dark:bg-slate-700 rounded-full overflow-hidden">
+      <div className="relative h-2 overflow-hidden rounded-full bg-bg-sunken">
         <div
-          className={`
-            h-full rounded-full transition-all duration-500 ease-out
-            ${isOverLimit ? "bg-red-500" : color}
-          `}
+          className={cn(
+            "h-full rounded-full transition-all duration-700 ease-out",
+            isOverLimit ? "bg-danger" : color
+          )}
           style={{ width: `${percentage}%` }}
         />
       </div>
 
-      {isOverLimit && (
-        <p className="mt-1 text-xs text-red-500">Over limit by {value - max}</p>
-      )}
+      {isOverLimit ? (
+        <p className="mt-1 text-xs text-danger">Over limit by {value - max}</p>
+      ) : null}
     </div>
   );
 }

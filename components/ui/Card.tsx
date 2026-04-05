@@ -1,22 +1,33 @@
 import React from "react";
+import { cn } from "@/lib/utils";
 
 interface CardProps {
   children: React.ReactNode;
   className?: string;
   hover?: boolean;
+  interactive?: boolean;
+  inverted?: boolean;
 }
 
-export function Card({ children, className = "", hover = false }: CardProps) {
+export function Card({
+  children,
+  className,
+  hover = false,
+  interactive = false,
+  inverted = false,
+}: CardProps) {
   return (
     <div
-      className={`
-        bg-white dark:bg-slate-900
-        border border-gray-200 dark:border-slate-800
-        rounded-xl shadow-sm
-        transition-all duration-200
-        ${hover ? "hover:shadow-md hover:border-gray-300 dark:hover:border-slate-700" : ""}
-        ${className}
-      `}
+      className={cn(
+        "rounded-2xl border shadow-sm transition-all duration-300",
+        inverted
+          ? "border-white/10 bg-ink-primary text-ink-inverted shadow-lg"
+          : "border-border bg-bg-surface text-ink-primary",
+        hover && "hover:shadow-md",
+        interactive &&
+          "cursor-pointer hover:-translate-y-0.5 hover:shadow-md active:translate-y-0 active:shadow-sm",
+        className
+      )}
     >
       {children}
     </div>
@@ -28,12 +39,8 @@ interface CardHeaderProps {
   className?: string;
 }
 
-export function CardHeader({ children, className = "" }: CardHeaderProps) {
-  return (
-    <div className={`px-6 py-4 border-b border-gray-200 dark:border-slate-800 ${className}`}>
-      {children}
-    </div>
-  );
+export function CardHeader({ children, className }: CardHeaderProps) {
+  return <div className={cn("space-y-2 px-6 pt-6", className)}>{children}</div>;
 }
 
 interface CardTitleProps {
@@ -41,9 +48,9 @@ interface CardTitleProps {
   className?: string;
 }
 
-export function CardTitle({ children, className = "" }: CardTitleProps) {
+export function CardTitle({ children, className }: CardTitleProps) {
   return (
-    <h3 className={`text-lg font-semibold text-gray-900 dark:text-white ${className}`}>
+    <h3 className={cn("font-display text-2xl font-bold text-inherit", className)}>
       {children}
     </h3>
   );
@@ -54,6 +61,6 @@ interface CardContentProps {
   className?: string;
 }
 
-export function CardContent({ children, className = "" }: CardContentProps) {
-  return <div className={`p-6 ${className}`}>{children}</div>;
+export function CardContent({ children, className }: CardContentProps) {
+  return <div className={cn("p-6", className)}>{children}</div>;
 }

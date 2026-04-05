@@ -1,22 +1,25 @@
 "use client";
 
 import { useEffect } from "react";
+import type { ReactNode } from "react";
 import { useRouter } from "next/navigation";
-import { Sidebar } from "@/components/Sidebar";
 import { BottomNav } from "@/components/BottomNav";
+import { Sidebar } from "@/components/Sidebar";
 import { Loading } from "@/components/ui/Loading";
 import { useAppContext } from "@/context/app-context";
 
 export default function DashboardLayout({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const router = useRouter();
   const { user, isUserFetched, onboardingCompleted } = useAppContext();
 
   useEffect(() => {
-    if (!isUserFetched) return;
+    if (!isUserFetched) {
+      return;
+    }
 
     if (!user) {
       router.replace("/login");
@@ -26,10 +29,10 @@ export default function DashboardLayout({
     if (!onboardingCompleted) {
       router.replace("/onboarding");
     }
-  }, [user, isUserFetched, onboardingCompleted, router]);
+  }, [isUserFetched, onboardingCompleted, router, user]);
 
   if (!isUserFetched) {
-    return <Loading fullScreen text="Loading..." />;
+    return <Loading fullScreen text="Checking your session..." />;
   }
 
   if (!user || !onboardingCompleted) {
@@ -39,8 +42,10 @@ export default function DashboardLayout({
   return (
     <>
       <Sidebar />
-      <main className="lg:ml-64 pb-20 lg:pb-0 min-h-screen bg-gray-50 dark:bg-slate-950">
-        <div className="p-4 lg:p-8 max-w-7xl mx-auto">{children}</div>
+      <main className="min-h-screen bg-bg-base pb-24 lg:ml-[260px] lg:pb-0">
+        <div className="editorial-grid min-h-screen">
+          <div className="page-shell py-6 md:py-8 lg:py-10">{children}</div>
+        </div>
       </main>
       <BottomNav />
     </>
